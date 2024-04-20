@@ -31,7 +31,7 @@ mvn package
 # replace the connection, warmup, runtime, and client variables with the respective values
 java -jar target/transactional-1.0-SNAPSHOT.jar -d jdbc:postgresql://HOST:PORT/DBNAME -U USER -P PASSWORD -W WARMUP -R RUNTIME -c CLIENTS
 # E.g.:
-java -jar target/transactional-1.0-SNAPSHOT.jar -d jdbc:postgresql://localhost:5432/stack -U postgres -P postgres -W 15 -R 180 -c 16
+java -jar target/transactional-1.0-SNAPSHOT.jar -d jdbc:postgresql://localhost:5432/projetoabd -U postgres -P postgres -W 15 -R 180 -c 16
 ```
 
 ### Analytical workloads

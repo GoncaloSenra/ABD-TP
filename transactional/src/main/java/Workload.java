@@ -13,7 +13,7 @@ public class Workload {
         private final Connection conn;
         private final ObjectMapper mapper;
         private PreparedStatement addQuestion, addQuestionTag, addAnswer, updateQuestionActivity, addVote,
-            getQuestionInfo, getPostPoints, getUserInfo, getUserBadges, search, latestQuestionsByTag;
+            getQuestionInfo, getPostPoints, getUserInfo, getUserBadges, search, latestQuestionsByTag, getUserProfile;
         // considered ids for this client
         private final Map<String, List<Long>> ids;
         // to simplify, the list of search terms is static. however, the query must consider any other term
@@ -81,28 +81,32 @@ public class Workload {
         """);
 
         getQuestionInfo = conn.prepareStatement("""
-            select title, body, creationdate, owneruserid, acceptedanswerid, tag_list, answers_list, links_list
-            from questions q
-            -- tags
-            left join (
-                select qt.questionid, array_agg(tagname) as tag_list
-                from tags t
-                join questionstags qt on qt.tagid = t.id
-                group by qt.questionid
-            ) t on t.questionid = q.id
-            -- answers
-            left join (
-                select a.parentid, json_agg(json_build_object('user', a.owneruserid, 'body', a.body)) as answers_list
-                from answers a
-                group by a.parentid
-            ) a on a.parentid = q.id
-            -- links
-            left join (
-                select ql.questionid, json_agg(json_build_object('question', ql.relatedquestionid, 'type', ql.linktypeid)) as links_list
-                from questionslinks ql
-                group by ql.questionid
-            ) ql on ql.questionid = q.id
-            where q.id = ?;
+            SELECT
+                q.title,
+                q.body,
+                q.creationdate,
+                q.owneruserid,
+                q.acceptedanswerid,
+                (
+                    SELECT json_agg(json_build_object('user', a.owneruserid, 'body', a.body))
+                    FROM answers a
+                    WHERE a.parentid = q.id
+                ) AS answers_list,
+                (
+                    SELECT array_agg(tagname)
+                    FROM tags t
+                    JOIN questionstags qt ON qt.tagid = t.id
+                    WHERE qt.questionid = q.id
+                ) AS tag_list,
+                (
+                    SELECT json_agg(json_build_object('question', ql.relatedquestionid, 'type', ql.linktypeid))
+                    FROM questionslinks ql
+                    WHERE ql.questionid = q.id
+                ) AS links_list
+            FROM
+                questions q
+            WHERE
+                q.id = ?;
         """);
 
         getPostPoints = conn.prepareStatement("""
@@ -112,17 +116,30 @@ public class Workload {
             where v.postid = ?
         """);
 
-        getUserInfo = conn.prepareStatement("""
-            select displayname, creationdate, aboutme, websiteurl, location, reputation
-            from users
-            where id = ?
+        getUserProfile = conn.prepareStatement("""
+            SELECT
+                u.displayname,
+                u.creationdate,
+                u.aboutme,
+                u.websiteurl,
+                u.location,
+                u.reputation,
+                array_agg(DISTINCT b.name) AS badges
+            FROM
+                users u
+            LEFT JOIN
+                badges b ON u.id = b.userid
+            WHERE
+                u.id = 114
+            GROUP BY
+                u.displayname,
+                u.creationdate,
+                u.aboutme,
+                u.websiteurl,
+                u.location,
+                u.reputation;
         """);
 
-        getUserBadges = conn.prepareStatement("""
-            select array_agg(distinct name)
-            from badges
-            where userid = ?
-        """);
 
         search = conn.prepareStatement("""
             select id, title
@@ -263,8 +280,8 @@ public class Workload {
      * Retrieves a user's profile
      */
     private User userProfile(long user) throws SQLException {
-        getUserInfo.setLong(1, user);
-        var rs = getUserInfo.executeQuery();
+        getUserProfile.setLong(1, user);
+        var rs = getUserProfile.executeQuery();
         rs.next();
 
         var u = new User();
@@ -274,10 +291,6 @@ public class Workload {
         u.websiteUrl = rs.getString(4);
         u.location = rs.getString(5);
         u.reputation = rs.getInt(6);
-
-        getUserBadges.setLong(1, user);
-        rs = getUserBadges.executeQuery();
-        rs.next();
         var badges = rs.getArray(1);
         if (badges != null) {
             u.badges = Arrays.asList((String[]) badges.getArray());
