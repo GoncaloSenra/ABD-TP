@@ -1,3 +1,14 @@
+-- Drop triggers
+DROP TRIGGER IF EXISTS trigger_refresh_user_profile_view ON users CASCADE;
+DROP TRIGGER IF EXISTS trigger_refresh_user_profile_view_badges ON badges CASCADE;
+
+-- Drop functions
+DROP FUNCTION IF EXISTS refresh_user_profile_view;
+
+-- Drop views
+DROP MATERIALIZED VIEW IF EXISTS user_profile_view CASCADE;
+
+
 DROP TABLE IF EXISTS Badges;
 DROP TABLE IF EXISTS Comments;
 DROP TABLE IF EXISTS QuestionsLinks;

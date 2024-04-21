@@ -117,27 +117,9 @@ public class Workload {
         """);
 
         getUserProfile = conn.prepareStatement("""
-            SELECT
-                u.displayname,
-                u.creationdate,
-                u.aboutme,
-                u.websiteurl,
-                u.location,
-                u.reputation,
-                array_agg(DISTINCT b.name) AS badges
-            FROM
-                users u
-            LEFT JOIN
-                badges b ON u.id = b.userid
-            WHERE
-                u.id = 114
-            GROUP BY
-                u.displayname,
-                u.creationdate,
-                u.aboutme,
-                u.websiteurl,
-                u.location,
-                u.reputation;
+        SELECT
+            * From user_profile_view 
+            where user_id = ?;
         """);
 
 

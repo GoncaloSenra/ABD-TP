@@ -14,3 +14,55 @@ CREATE INDEX idx_postid ON votes(postid);
 CREATE INDEX idx_tags_questionid ON questionstags (questionid);
 CREATE INDEX idx_answers_parentid ON answers (parentid);
 CREATE INDEX idx_questionslinks_questionid ON questionslinks (questionid);
+
+
+-- create views
+CREATE MATERIALIZED VIEW user_profile_view AS
+SELECT
+    u.id as user_id,
+    u.displayname,
+    u.creationdate,
+    u.aboutme,
+    u.websiteurl,
+    u.location,
+    u.reputation,
+    array_agg(DISTINCT b.name) AS badges
+FROM
+    users u
+LEFT JOIN
+    badges b ON u.id = b.userid
+GROUP BY
+    u.id,
+    u.displayname,
+    u.creationdate,
+    u.aboutme,
+    u.websiteurl,
+    u.location,
+    u.reputation;
+
+
+-- create triggers
+
+CREATE OR REPLACE FUNCTION refresh_user_profile_view()
+RETURNS TRIGGER AS
+$$
+BEGIN
+    REFRESH MATERIALIZED VIEW user_profile_view;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_refresh_user_profile_view
+AFTER INSERT OR UPDATE OR DELETE ON users
+FOR EACH STATEMENT
+EXECUTE FUNCTION refresh_user_profile_view();
+
+CREATE TRIGGER trigger_refresh_user_profile_view_badges
+AFTER INSERT OR UPDATE OR DELETE ON badges
+FOR EACH STATEMENT
+EXECUTE FUNCTION refresh_user_profile_view();
+
+
+-- create indexes
+CREATE INDEX idx_user_id ON user_profile_view (user_id) ;
