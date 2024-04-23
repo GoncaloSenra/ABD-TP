@@ -99,9 +99,9 @@ public class Workload {
                     WHERE qt.questionid = q.id
                 ) AS tag_list,
                 (
-                    SELECT json_agg(json_build_object('question', ql.relatedquestionid, 'type', ql.linktypeid))
-                    FROM questionslinks ql
-                    WHERE ql.questionid = q.id
+                    SELECT related_questions
+                    FROM get_question_view
+                    WHERE q_id = q.id
                 ) AS links_list
             FROM
                 questions q
