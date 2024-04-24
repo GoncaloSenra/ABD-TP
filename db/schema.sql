@@ -6,6 +6,7 @@ DROP TRIGGER IF EXISTS trigger_refresh_user_profile_view_badges ON badges CASCAD
 DROP FUNCTION IF EXISTS refresh_user_profile_view;
 
 -- Drop views
+DROP MATERIALIZED VIEW IF EXISTS get_question_view CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS user_profile_view CASCADE;
 
 
