@@ -41,6 +41,12 @@ GROUP BY
     u.reputation;
 
 
+CREATE MATERIALIZED VIEW get_question_view AS
+SELECT ql.QuestionId as q_id, json_agg(json_build_object('question', ql.relatedquestionid, 'type', ql.linktypeid)) as related_questions
+FROM questionslinks ql
+GROUP BY ql.QuestionId;
+
+
 -- create triggers
 
 CREATE OR REPLACE FUNCTION refresh_user_profile_view()
