@@ -12,8 +12,8 @@ public class Workload {
         private final Random rand;
         private final Connection conn;
         private final ObjectMapper mapper;
-        private PreparedStatement addQuestion, addQuestionTag, addAnswer, updateQuestionActivity, addVote,
-            getQuestionInfo, getPostPoints, getUserInfo, getUserBadges, search, latestQuestionsByTag, getUserProfile;
+        private PreparedStatement addQuestion, getUserProfile, addQuestionTag, addAnswer, updateQuestionActivity, addVote,
+            getQuestionInfo, getPostPoints, getUserInfo, getUserBadges, search, latestQuestionsByTag;
         // considered ids for this client
         private final Map<String, List<Long>> ids;
         // to simplify, the list of search terms is static. however, the query must consider any other term
@@ -81,32 +81,27 @@ public class Workload {
         """);
 
         getQuestionInfo = conn.prepareStatement("""
-            SELECT
-                q.title,
-                q.body,
-                q.creationdate,
-                q.owneruserid,
-                q.acceptedanswerid,
-                (
-                    SELECT json_agg(json_build_object('user', a.owneruserid, 'body', a.body))
-                    FROM answers a
-                    WHERE a.parentid = q.id
-                ) AS answers_list,
-                (
-                    SELECT array_agg(tagname)
-                    FROM tags t
-                    JOIN questionstags qt ON qt.tagid = t.id
-                    WHERE qt.questionid = q.id
-                ) AS tag_list,
-                (
-                    SELECT related_questions
-                    FROM get_question_view
-                    WHERE q_id = q.id
-                ) AS links_list
-            FROM
-                questions q
-            WHERE
-                q.id = ?;
+            select title, body, creationdate, owneruserid, acceptedanswerid, tag_list, answers_list, links_list
+            from questions q
+            -- tags
+            left join (
+                select qt.questionid, array_agg(tagname) as tag_list
+                from tags t
+                join questionstags qt on qt.tagid = t.id
+                group by qt.questionid
+            ) t on t.questionid = q.id
+            -- answers
+            left join (
+                select a.parentid, json_agg(json_build_object('user', a.owneruserid, 'body', a.body)) as answers_list
+                from answers a
+                group by a.parentid
+            ) a on a.parentid = q.id
+            -- links
+            left join (
+                select ql.q_id, ql.links_list
+                from get_question_view ql
+            ) ql on ql.q_id = q.id
+            where q.id = ?;
         """);
 
         getPostPoints = conn.prepareStatement("""
@@ -116,12 +111,23 @@ public class Workload {
             where v.postid = ?
         """);
 
+        // getUserInfo = conn.prepareStatement("""
+        //     select displayname, creationdate, aboutme, websiteurl, location, reputation
+        //     from users
+        //     where id = ?
+        // """);
+
+        // getUserBadges = conn.prepareStatement("""
+        //     select array_agg(distinct name)
+        //     from badges
+        //     where userid = ?
+        // """);
+
         getUserProfile = conn.prepareStatement("""
         SELECT
             * From user_profile_view 
             where user_id = ?;
         """);
-
 
         search = conn.prepareStatement("""
             select id, title
@@ -218,6 +224,16 @@ public class Workload {
         var rs = getQuestionInfo.executeQuery();
         rs.next();
 
+       
+        // System.out.println("1------------------" + rs.getString(1));
+        // System.out.println("2------------------" + rs.getString(2));
+        // System.out.println("3------------------" + rs.getString(3));
+        // System.out.println("4------------------" + rs.getString(4));
+        // System.out.println("5------------------" + rs.getString(5));
+        // System.out.println("6------------------" + rs.getString(6));
+        // System.out.println("7------------------" + rs.getString(7));
+        // System.out.println("8------------------" + rs.getString(8));
+
         var q = new Question();
         q.title = rs.getString(1);
         q.body = rs.getString(2);
@@ -266,17 +282,28 @@ public class Workload {
         var rs = getUserProfile.executeQuery();
         rs.next();
 
+        // System.out.println("1------------------" + rs.getString(1));
+        // System.out.println("2------------------" + rs.getString(2));
+        // System.out.println("3------------------" + rs.getString(3));
+        // System.out.println("4------------------" + rs.getString(4));
+        // System.out.println("5------------------" + rs.getString(5));
+        // System.out.println("6------------------" + rs.getString(6));
+        // System.out.println("7------------------" + rs.getString(7));
+        // System.out.println("8------------------" + rs.getString(8));
+
         var u = new User();
-        u.displayName = rs.getString(1);
-        u.creationDate = rs.getTimestamp(2).toLocalDateTime();
-        u.aboutMe = rs.getString(3);
-        u.websiteUrl = rs.getString(4);
-        u.location = rs.getString(5);
-        u.reputation = rs.getInt(6);
-        var badges = rs.getArray(1);
+        u.displayName = rs.getString(2);
+        u.creationDate = rs.getTimestamp(3).toLocalDateTime();
+        u.aboutMe = rs.getString(4);
+        u.websiteUrl = rs.getString(5);
+        u.location = rs.getString(6);
+        u.reputation = rs.getInt(7);
+        var badges = rs.getArray(8);
         if (badges != null) {
             u.badges = Arrays.asList((String[]) badges.getArray());
         }
+        
+        //System.out.println(u.toString());
 
         conn.commit();
         return u;

@@ -6,7 +6,6 @@ SELECT setval('tags_id_seq', (SELECT MAX(id) FROM Tags));
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM Users));
 SELECT setval('votes_id_seq', (SELECT MAX(id) FROM Votes));
 
-
 -- create indexes
 CREATE INDEX idx_questions_title_fts ON questions USING GIN(to_tsvector('english', title)); 
 CREATE INDEX idx_questions_creationdate ON questions (creationdate);
@@ -42,9 +41,28 @@ GROUP BY
 
 
 CREATE MATERIALIZED VIEW get_question_view AS
-SELECT ql.QuestionId as q_id, json_agg(json_build_object('question', ql.relatedquestionid, 'type', ql.linktypeid)) as related_questions
+SELECT ql.questionid as q_id, json_agg(json_build_object('question', ql.relatedquestionid, 'type', ql.linktypeid)) as links_list
 FROM questionslinks ql
-GROUP BY ql.QuestionId;
+GROUP BY ql.questionid;
+
+-- create triggers
+
+CREATE OR REPLACE FUNCTION refresh_get_question_view()
+RETURNS TRIGGER AS
+$$
+BEGIN
+    REFRESH MATERIALIZED VIEW get_question_view;
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_refresh_get_question_view
+AFTER INSERT OR UPDATE OR DELETE ON questionslinks
+FOR EACH STATEMENT
+EXECUTE FUNCTION refresh_get_question_view();
+
+
 
 
 -- create triggers
