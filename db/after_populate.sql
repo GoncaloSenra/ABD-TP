@@ -91,3 +91,9 @@ EXECUTE FUNCTION refresh_user_profile_view();
 -- create indexes
 CREATE INDEX idx_user_id ON user_profile_view (user_id) ;
 CREATE INDEX idx_question_id ON get_question_view (q_id) ;
+
+create view last_questions_tag as
+select id, title, tagid, creationdate
+from questions q
+join questionstags qt on qt.questionid = q.id
+
