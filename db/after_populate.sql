@@ -8,7 +8,7 @@ SELECT setval('votes_id_seq', (SELECT MAX(id) FROM Votes));
 
 -- create indexes
 CREATE INDEX idx_questions_title_fts ON questions USING GIN(to_tsvector('english', title)); 
-CREATE INDEX idx_questions_creationdate ON questions (creationdate);
+CREATE INDEX idx_questions_creationdate ON questions (creationdate DESC);
 CREATE INDEX idx_postid ON votes(postid);
 CREATE INDEX idx_tags_questionid ON questionstags (questionid);
 CREATE INDEX idx_tags_questionid_tag ON questionstags (tagid);
