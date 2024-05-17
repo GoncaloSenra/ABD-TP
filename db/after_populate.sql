@@ -11,6 +11,7 @@ CREATE INDEX idx_questions_title_fts ON questions USING GIN(to_tsvector('english
 CREATE INDEX idx_questions_creationdate ON questions (creationdate);
 CREATE INDEX idx_postid ON votes(postid);
 CREATE INDEX idx_tags_questionid ON questionstags (questionid);
+CREATE INDEX idx_tags_questionid_tag ON questionstags (tagid);
 CREATE INDEX idx_answers_parentid ON answers (parentid);
 CREATE INDEX idx_questionslinks_questionid ON questionslinks (questionid);
 
@@ -92,8 +93,8 @@ EXECUTE FUNCTION refresh_user_profile_view();
 CREATE INDEX idx_user_id ON user_profile_view (user_id) ;
 CREATE INDEX idx_question_id ON get_question_view (q_id) ;
 
-create view last_questions_tag as
-select id, title, tagid, creationdate
-from questions q
-join questionstags qt on qt.questionid = q.id
+-- create view last_questions_tag as
+-- select id, title, tagid, creationdate
+-- from questions q
+-- join questionstags qt on qt.questionid = q.id
 

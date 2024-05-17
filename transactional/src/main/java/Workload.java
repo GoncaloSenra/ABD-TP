@@ -136,22 +136,22 @@ public class Workload {
             limit 25
         """);
 
-//        latestQuestionsByTag = conn.prepareStatement("""
-//            select id, title
-//            from questions q
-//            join questionstags qt on qt.questionid = q.id
-//            where qt.tagid = ?
-//            order by q.creationdate desc
-//            limit 25
-//        """);
+       latestQuestionsByTag = conn.prepareStatement("""
+           select id, title
+           from questions q
+           join questionstags qt on qt.questionid = q.id
+           where qt.tagid = ?
+           order by q.creationdate desc
+           limit 25
+       """);
 
-        latestQuestionsByTag = conn.prepareStatement("""
-            select id, title
-            from last_questions_tag qt
-            where qt.tagid = ?
-            order by creationdate desc
-            limit 25
-        """);
+        // latestQuestionsByTag = conn.prepareStatement("""
+        //     select id, title
+        //     from last_questions_tag qt
+        //     where qt.tagid = ?
+        //     order by creationdate desc
+        //     limit 25
+        // """);
     }
 
 
