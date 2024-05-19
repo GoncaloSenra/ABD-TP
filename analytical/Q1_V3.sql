@@ -1,4 +1,3 @@
-EXPLAIN ANALYZE
 WITH recent_questions AS (
     SELECT owneruserid, count(distinct id) q_total
     FROM questions

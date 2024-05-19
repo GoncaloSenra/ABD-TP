@@ -1,4 +1,3 @@
-explain analyse
 SELECT u.id, u.displayname,
        coalesce(q_total,0) + coalesce(a_total,0) + coalesce(c_total,0) total
 FROM users u

@@ -88,6 +88,17 @@ if __name__ == "__main__":
         res = execute_query(queries)
         print(f'Run time: {time.time() - t}')
 
+        for q in query_files:
+            total = 0
+            count = 0
+            for r in res:
+                if r[0] == q and count > 0:
+                    total += r[2]
+                count += 1
+            media_ms = total / (max_iter - 1)
+            media_sec = media_ms / 1000.0
+            print(f"Média de tempo de execução para {q}: {media_ms}ms, {media_sec}s")
+
         content = "QUERY,PLANNING_TIME,EXECUTION_TIME,ROWS\n"
         for r in res:
             content += f"{r[0]},{r[1]},{r[2]},{r[3]}\n"

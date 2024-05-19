@@ -1,4 +1,3 @@
-explain analyze
 with dados as (
     SELECT owneruserid user_id, count(distinct id) total
     FROM questions

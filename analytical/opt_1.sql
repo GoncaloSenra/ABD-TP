@@ -1,4 +1,6 @@
 
+-- Q1
+
 select tablename, indexname, indexdef from pg_indexes where schemaname = 'public';
 
 create index questions_owneruserid_idx on questions (owneruserid);

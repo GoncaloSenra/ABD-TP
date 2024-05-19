@@ -1,4 +1,3 @@
-explain analyze
 SELECT u.id, u.displayname,
 --        (sum(case when q.id IS NOT NULL then 1 else 0 end) +
 --         sum(case when a.id IS NOT NULL then 1 else 0 end) +
