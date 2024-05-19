@@ -1,3 +1,4 @@
+explain analyse
 SELECT id, displayname,
     count(DISTINCT q_id) + count(DISTINCT a_id) + count(DISTINCT c_id) total
 FROM (

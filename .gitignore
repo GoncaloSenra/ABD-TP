@@ -1,5 +1,5 @@
-db/data
 db/data-lite
+db/data_full
 
 # Compiled class file
 *.class
