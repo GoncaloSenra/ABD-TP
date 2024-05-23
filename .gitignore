@@ -1,5 +1,9 @@
 db/data-lite
 db/data_full
+spark/app/data_lite
+spark/app/data_full
+spark/app/parquet_data_lite
+spark/app/parquet_data_full
 
 # Compiled class file
 *.class
