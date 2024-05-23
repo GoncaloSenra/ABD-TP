@@ -5,6 +5,8 @@ spark/app/data_full
 spark/app/parquet_data_lite
 spark/app/parquet_data_full
 
+spark/app/credentials.json
+
 # Compiled class file
 *.class
 
