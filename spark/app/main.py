@@ -68,10 +68,13 @@ def q1(users: DataFrame, questions: DataFrame, answers: DataFrame, comments: Dat
         c_df.repartition(partitions)
 
     # Join the subqueries with the users dataframe
+        # .join(q_df.hint("broadcast"), users["id"] == q_df["owneruserid"], "left_outer") \
+        # .join(a_df.hint("broadcast"), users["id"] == a_df["owneruserid"], "left_outer") \
+        # .join(c_df.hint("broadcast"), users["id"] == c_df["userid"], "left_outer") \
     return users \
-        .join(q_df.hint("broadcast"), users["id"] == q_df["owneruserid"], "left_outer") \
-        .join(a_df.hint("broadcast"), users["id"] == a_df["owneruserid"], "left_outer") \
-        .join(c_df.hint("broadcast"), users["id"] == c_df["userid"], "left_outer") \
+        .join(q_df, users["id"] == q_df["owneruserid"], "left_outer") \
+        .join(a_df, users["id"] == a_df["owneruserid"], "left_outer") \
+        .join(c_df, users["id"] == c_df["userid"], "left_outer") \
         .select(
             users["id"],
             users["displayname"],
@@ -84,9 +87,47 @@ def q1(users: DataFrame, questions: DataFrame, answers: DataFrame, comments: Dat
         .collect()
 
 @timeit
-def q2() -> List[Row]:
-    pass
+def q2(users: DataFrame, answers: DataFrame, votes: DataFrame, votesTypes: DataFrame, partitions: int = None) -> List[Row]:
+    # votos
+    votos_df = votes \
+        .join(votesTypes, votes["votetypeid"] == votesTypes["id"]) \
+        .filter((votesTypes["name"] == "AcceptedByOriginator") & 
+            (votes["creationdate"] >= sf.date_sub(sf.current_date(), 5 * 365))) \
+        .select("postid")
+    
+    # respostas
+    respostas_df = answers \
+        .filter(answers["id"].isin(votos_df.select("postid").rdd.flatMap(lambda x: x).collect())) \
+        .select("owneruserid")
 
+    # utilizadores
+    utilizadores_df = users \
+        .filter(users["id"].isin(respostas_df.select("owneruserid").rdd.flatMap(lambda x: x).collect())) \
+        .withColumn("ano", sf.year(users["creationdate"])) \
+        .withColumn("rep", sf.floor(users["reputation"] / 5000) * 5000) \
+        .select("id", "ano", "reputation", "rep")
+
+    # years
+    current_year = int(spark.sql("SELECT year(current_date())").collect()[0][0])
+    years_df = spark.range(2008, current_year + 1).toDF("year")
+
+    # max_reputations
+    max_reputations_df = utilizadores_df \
+        .join(years_df, utilizadores_df["ano"] == years_df["year"]) \
+        .groupBy("year") \
+        .agg(sf.max("reputation").cast("int").alias("rep"))
+
+    # buckets
+    buckets_df = max_reputations_df \
+        .withColumn("reputation_range", sf.expr("sequence(0, rep, 5000)")) \
+        .withColumn("reputation_range", sf.explode("reputation_range"))
+    
+    # Resultado final
+    result_df = buckets_df \
+        .join(utilizadores_df, (utilizadores_df["ano"] == buckets_df["year"]) & (utilizadores_df["rep"] == buckets_df["reputation_range"]), "left") \
+        .groupBy("year", "reputation_range") \
+        .agg(sf.count("id").alias("total")) \
+        .orderBy("year", "reputation_range")
 
 def main():   
     @timeit
@@ -114,6 +155,17 @@ def main():
         q1(users, questions, answers, comments, partitions)
         #print_rows(result)
     
+    
+    @timeit
+    def w2():
+        showPartitionSize("votesTypes", votesTypes)
+        showPartitionSize("votes", votes)
+        showPartitionSize("answers", answers)
+        showPartitionSize("users", users)
+        
+        q2(users, answers, votes, votesTypes)
+        #print_rows(result)
+
     if len(sys.argv) < 2:
         print('Missing function name. Usage: python3 main.py <function-name>')
         return
@@ -128,7 +180,9 @@ def main():
         .config("spark.driver.extraClassPath", "/app/gcs-connector-hadoop3-2.2.21.jar") \
         .config("spark.eventLog.enabled", "true") \
         .config("spark.eventLog.dir", "/tmp/spark-events") \
+        .config("spark.sql.adaptive.enabled", "true") \
         .getOrCreate()
+        # Com adaptive disabled demora o dobro
         # .config("spark.sql.shuffle.partitions", 200) \
         # .config("spark.sql.autoBroadcastJoinThreshold", 10 * 1024 * 1024) \
         # .config("spark.executor.memory", "1g") \
