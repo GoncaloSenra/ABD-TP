@@ -87,7 +87,7 @@ def q1(users: DataFrame, questions: DataFrame, answers: DataFrame, comments: Dat
         .collect()
 
 @timeit
-def q2(users: DataFrame, answers: DataFrame, votes: DataFrame, votesTypes: DataFrame, partitions: int = None) -> List[Row]:
+def q2(spark: SparkSession, users: DataFrame, answers: DataFrame, votes: DataFrame, votesTypes: DataFrame, partitions: int = None) -> List[Row]:
     # votos
     votos_df = votes \
         .join(votesTypes, votes["votetypeid"] == votesTypes["id"]) \
@@ -164,7 +164,7 @@ def main():
         showPartitionSize("answers", answers)
         showPartitionSize("users", users)
         
-        q2(users, answers, votes, votesTypes)
+        q2(spark, users, answers, votes, votesTypes)
         #print_rows(result)
 
     if len(sys.argv) < 2:

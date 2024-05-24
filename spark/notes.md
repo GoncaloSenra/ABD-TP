@@ -227,3 +227,44 @@ q1: 18.193s
 w1p: 207.266s
 
 ```
+
+
+# Q2
+
+Sem salt
+```
+
+24/05/24 20:25:01 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+24/05/24 20:32:44 WARN DAGScheduler: Broadcasting large task binary with size 5.3 MiB
+votesTypes:                                                                     
+Partition 0 has 14 rows
+
+votes:
+Partition 0 has 0 rows
+Partition 1 has 25556412 rows
+Partition 2 has 0 rows
+
+answers:
+Partition 0 has 538456 rows
+Partition 1 has 509937 rows
+Partition 2 has 483177 rows
+Partition 3 has 450246 rows
+Partition 4 has 432404 rows
+Partition 5 has 424999 rows
+Partition 6 has 408476 rows
+Partition 7 has 402046 rows
+Partition 8 has 390492 rows
+Partition 9 has 371776 rows
+Partition 10 has 15294 rows
+
+users:
+Partition 0 has 0 rows
+Partition 1 has 1492696 rows
+Partition 2 has 0 rows
+
+q2: 455.762s
+w2: 683.57s
+
+```
