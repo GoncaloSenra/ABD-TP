@@ -40,12 +40,12 @@ DROP INDEX IF EXISTS idx_answers_parentid;
 
 CREATE INDEX idx_answers_parentid ON answers (parentid); 
 
--- CREATE MATERIALIZED VIEW q3_subquery_mv3 AS
--- SELECT t.tagname, qt.questionid, count(*) AS total
--- FROM tags t
--- JOIN questionstags qt ON qt.tagid = t.id
--- LEFT JOIN answers a ON a.parentid = qt.questionid
--- GROUP BY t.tagname, qt.questionid;
+CREATE MATERIALIZED VIEW q3_subquery_mv3 AS
+SELECT t.tagname, qt.questionid, count(*) AS total
+FROM tags t
+JOIN questionstags qt ON qt.tagid = t.id
+LEFT JOIN answers a ON a.parentid = qt.questionid
+GROUP BY t.tagname, qt.questionid;
 
 
 -- CREATE OR REPLACE FUNCTION refresh_q3_subquery_mv3_view()
