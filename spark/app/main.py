@@ -47,30 +47,17 @@ def q1(users: DataFrame, questions: DataFrame, answers: DataFrame, comments: Dat
     q_df = questions.filter(interval_filter) \
         .groupBy("owneruserid") \
         .agg(sf.countDistinct("id").alias("q_total"))
-    
-    if partitions:
-        q_df.repartition(partitions)
 
     # Subquery for answers
     a_df = answers.filter(interval_filter) \
         .groupBy("owneruserid") \
         .agg(sf.countDistinct("id").alias("a_total"))
 
-    if partitions:
-        a_df.repartition(partitions)
-
     # Subquery for comments
     c_df = comments.filter(interval_filter) \
         .groupBy("userid") \
         .agg(sf.countDistinct("id").alias("c_total"))
 
-    if partitions:
-        c_df.repartition(partitions)
-
-    # Join the subqueries with the users dataframe
-        # .join(q_df.hint("broadcast"), users["id"] == q_df["owneruserid"], "left_outer") \
-        # .join(a_df.hint("broadcast"), users["id"] == a_df["owneruserid"], "left_outer") \
-        # .join(c_df.hint("broadcast"), users["id"] == c_df["userid"], "left_outer") \
     return users \
         .join(q_df, users["id"] == q_df["owneruserid"], "left_outer") \
         .join(a_df, users["id"] == a_df["owneruserid"], "left_outer") \
@@ -129,6 +116,37 @@ def q2(spark: SparkSession, users: DataFrame, answers: DataFrame, votes: DataFra
         .agg(sf.count("id").alias("total")) \
         .orderBy("year", "reputation_range")
 
+@timeit
+def q3(spark: SparkSession, users: DataFrame, answers_df: DataFrame, votes_df: DataFrame, votesTypes: DataFrame, partitions: int = None):
+        # Filtrar votos de tipo 'AcceptedByOriginator' nos últimos 5 anos
+    accepted_votes_df = votes_df.join(votestypes_df, votes_df.votetypeid == votestypes_df.id) \
+        .filter((votestypes_df.name == "AcceptedByOriginator") & (votes_df.creationdate >= expr("CURRENT_DATE() - INTERVAL 5 YEAR"))) \
+        .select("postid")
+
+    # Obter os utilizadores com respostas aceites
+    accepted_users_df = answers_df.join(accepted_votes_df, answers_df.id == accepted_votes_df.postid) \
+        .select("owneruserid").distinct()
+
+    # Filtrar os utilizadores aceites no DataFrame de utilizadores
+    filtered_users_df = users_df.join(accepted_users_df, users_df.id == accepted_users_df.owneruserid) \
+        .select("id", "creationdate", "reputation")
+
+    # Gerar anos e intervalos de reputação
+    years_df = spark.range(2008, year(expr("CURRENT_DATE()")).cast("int") + 1).toDF("year")
+    max_reputation_df = filtered_users_df.groupBy(year("creationdate").alias("year")) \
+        .agg(spark_max(col("reputation")).cast("int").alias("max_reputation"))
+
+    # Unir anos com intervalos de reputação
+    buckets_df = years_df.join(max_reputation_df, "year", "left") \
+        .selectExpr("year", "explode(sequence(0, COALESCE(max_reputation, 0), 5000)) as reputation_range")
+
+    # Unir os buckets com os utilizadores filtrados
+    result_df = buckets_df.join(filtered_users_df, (year(filtered_users_df.creationdate) == buckets_df.year) &
+                            (floor(filtered_users_df.reputation / 5000) * 5000 == buckets_df.reputation_range), "left") \
+        .groupBy("year", "reputation_range") \
+        .count() \
+        .orderBy("year", "reputation_range")
+
 def main():   
     @timeit
     def w1():
@@ -165,6 +183,23 @@ def main():
         showPartitionSize("users", users)
         
         q2(spark, users, answers, votes, votesTypes)
+        #print_rows(result)
+
+    @timeit
+    def w2p():
+        partitions = 5
+        vt = votesTypes.withColumn("salt", sf.rand()).repartition(partitions, "salt")
+        v = votes.withColumn("salt", sf.rand()).repartition(partitions, "salt")
+        a = answers.withColumn("salt", sf.rand()).repartition(partitions, "salt")
+        u = users.withColumn("salt", sf.rand()).repartition(partitions, "salt")
+
+        showPartitionSize("votesTypes", vt)
+        showPartitionSize("votes", v)
+        showPartitionSize("answers", a)
+        showPartitionSize("users", u)
+        
+        q2(spark, u, a, v, vt)
+        #q2(spark, users, answers, votes, votesTypes)
         #print_rows(result)
 
     if len(sys.argv) < 2:
