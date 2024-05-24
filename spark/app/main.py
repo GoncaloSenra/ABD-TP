@@ -6,7 +6,7 @@ from functools import wraps
 import sys
 
 # bucket name
-BUCKET_NAME = 'abd-tp/parquet_data_lite/'
+BUCKET_NAME = 'abd-tp/parquet_data_full/'
 
 # utility to measure the runtime of some function
 def timeit(f):
@@ -24,19 +24,64 @@ def count_rows(iterator):
 
 
 # show the number of rows in each partition
-def showPartitionSize(df: DataFrame):
+def showPartitionSize(label: str, df: DataFrame):
+    print(f"{label}:")
     for partition, rows in enumerate(df.rdd.mapPartitions(count_rows).collect()):
         print(f'Partition {partition} has {rows} rows')
-
+    print("")
 
 def read_parquet_file(spark: SparkSession, name: str) -> DataFrame:
     return spark.read.parquet(f"gs://{BUCKET_NAME}/{name}.parquet")
 
+def print_rows(rows: List[Row]):
+    for r in rows:
+        print(r)
 
 @timeit
-def q1(votesTypes: DataFrame) -> List[Row]:
-    pass
+def q1(users: DataFrame, questions: DataFrame, answers: DataFrame, comments: DataFrame, partitions: int = None) -> List[Row]:
+    
+    # Define the 6 months interval filter
+    interval_filter = sf.expr("creationdate BETWEEN current_timestamp() - INTERVAL 6 MONTHS AND current_timestamp()")
 
+    # Subquery for questions
+    q_df = questions.filter(interval_filter) \
+        .groupBy("owneruserid") \
+        .agg(sf.countDistinct("id").alias("q_total"))
+    
+    if partitions:
+        q_df.repartition(partitions)
+
+    # Subquery for answers
+    a_df = answers.filter(interval_filter) \
+        .groupBy("owneruserid") \
+        .agg(sf.countDistinct("id").alias("a_total"))
+
+    if partitions:
+        a_df.repartition(partitions)
+
+    # Subquery for comments
+    c_df = comments.filter(interval_filter) \
+        .groupBy("userid") \
+        .agg(sf.countDistinct("id").alias("c_total"))
+
+    if partitions:
+        c_df.repartition(partitions)
+
+    # Join the subqueries with the users dataframe
+    return users \
+        .join(q_df.hint("broadcast"), users["id"] == q_df["owneruserid"], "left_outer") \
+        .join(a_df.hint("broadcast"), users["id"] == a_df["owneruserid"], "left_outer") \
+        .join(c_df.hint("broadcast"), users["id"] == c_df["userid"], "left_outer") \
+        .select(
+            users["id"],
+            users["displayname"],
+            (sf.coalesce(q_df["q_total"], sf.lit(0)) + 
+            sf.coalesce(a_df["a_total"], sf.lit(0)) + 
+            sf.coalesce(c_df["c_total"], sf.lit(0))).alias("total")
+        ) \
+        .orderBy(sf.col("total").desc()) \
+        .limit(100) \
+        .collect()
 
 @timeit
 def q2() -> List[Row]:
@@ -46,15 +91,28 @@ def q2() -> List[Row]:
 def main():   
     @timeit
     def w1():
-        df = votesTypes
-        showPartitionSize(df)
-        q1(df)
+        showPartitionSize("users", users)
+        showPartitionSize("questions", questions)
+        showPartitionSize("answers", answers)
+        showPartitionSize("comments", comments)
+        q1(users, questions, answers, comments)
+        #print_rows(result)
 
     @timeit
-    def w2():
-        df = votesTypes.repartition(3)
-        showPartitionSize(df)
-        q1(df)
+    def w1p():
+        partitions = 200
+        users.repartition(partitions)
+        questions.repartition(partitions)
+        answers.repartition(partitions)
+        comments.repartition(partitions)
+        
+        showPartitionSize("users", users)
+        showPartitionSize("questions", questions)
+        showPartitionSize("answers", answers)
+        showPartitionSize("comments", comments)
+
+        q1(users, questions, answers, comments, partitions)
+        #print_rows(result)
     
     if len(sys.argv) < 2:
         print('Missing function name. Usage: python3 main.py <function-name>')
@@ -71,7 +129,10 @@ def main():
         .config("spark.eventLog.enabled", "true") \
         .config("spark.eventLog.dir", "/tmp/spark-events") \
         .getOrCreate()
+        # .config("spark.sql.shuffle.partitions", 200) \
+        # .config("spark.sql.autoBroadcastJoinThreshold", 10 * 1024 * 1024) \
         # .config("spark.executor.memory", "1g") \
+        #.config("spark.sql.adaptive.localShuffleReader.enabled", True)
 
     # google cloud service account credentials file
     spark._jsc.hadoopConfiguration().set(
@@ -79,8 +140,12 @@ def main():
         "/app/credentials.json")
 
     # data frames
+    users = read_parquet_file(spark, "Users")
+    questions = read_parquet_file(spark, "Questions")
+    answers = read_parquet_file(spark, "Answers")
+    comments = read_parquet_file(spark, "Comments")
+    votes = read_parquet_file(spark, "Votes")
     votesTypes = read_parquet_file(spark, "VotesTypes")
-
 
     locals()[sys.argv[1]]()
 
