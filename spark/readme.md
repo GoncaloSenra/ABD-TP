@@ -19,3 +19,7 @@ docker exec spark_spark_1 python3 main.py w1
 
 ```
 
+```
+Acesso ao Spark History Server
+http://35.192.163.177:28080/
+```
