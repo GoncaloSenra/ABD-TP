@@ -141,18 +141,19 @@ def main():
 
     @timeit
     def w1p():
-        partitions = 200
-        users.repartition(partitions)
-        questions.repartition(partitions)
-        answers.repartition(partitions)
-        comments.repartition(partitions)
+        partitions = 5
+        u = users.withColumn("salt", sf.rand()).repartition(partitions, "salt")
+        q = questions.withColumn("salt", sf.rand()).repartition(partitions, "salt")
+        a = answers.withColumn("salt", sf.rand()).repartition(partitions, "salt")
+        c = comments.withColumn("salt", sf.rand()).repartition(partitions, "salt")
         
-        showPartitionSize("users", users)
-        showPartitionSize("questions", questions)
-        showPartitionSize("answers", answers)
-        showPartitionSize("comments", comments)
+        showPartitionSize("users", u)
+        showPartitionSize("questions", q)
+        showPartitionSize("answers", a)
+        showPartitionSize("comments", c)
 
-        q1(users, questions, answers, comments, partitions)
+        q1(u, q, a, c, partitions)
+        # q1(users, questions, answers, comments, partitions)
         #print_rows(result)
     
     

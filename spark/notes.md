@@ -187,3 +187,43 @@ Partition 12 has 627023 rows
 q1: 38.802s
 w1: 207.02s
 ```
+
+* Partição de 5 com salt 
+
+```
+
+24/05/24 19:55:00 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+users:                                                                          
+Partition 0 has 298835 rows
+Partition 1 has 298672 rows
+Partition 2 has 298624 rows
+Partition 3 has 298306 rows
+Partition 4 has 298259 rows
+
+questions:
+Partition 0 has 601733 rows
+Partition 1 has 600147 rows
+Partition 2 has 598818 rows
+Partition 3 has 598944 rows
+Partition 4 has 600358 rows
+
+answers:
+Partition 0 has 885841 rows
+Partition 1 has 885167 rows
+Partition 2 has 884547 rows
+Partition 3 has 885755 rows
+Partition 4 has 885993 rows
+
+comments:
+Partition 0 has 2250154 rows
+Partition 1 has 2248413 rows
+Partition 2 has 2247593 rows
+Partition 3 has 2246654 rows
+Partition 4 has 2249990 rows
+
+q1: 18.193s
+w1p: 207.266s
+
+```
