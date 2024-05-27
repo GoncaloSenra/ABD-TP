@@ -12,7 +12,7 @@ public class Workload {
         private final Random rand;
         private final Connection conn;
         private final ObjectMapper mapper;
-        private PreparedStatement addQuestion, addQuestionTag, addAnswer, updateQuestionActivity, addVote,
+        private PreparedStatement addQuestion, getUserProfile, addQuestionTag, addAnswer, updateQuestionActivity, addVote,
             getQuestionInfo, getPostPoints, getUserInfo, getUserBadges, search, latestQuestionsByTag;
         // considered ids for this client
         private final Map<String, List<Long>> ids;
@@ -98,10 +98,9 @@ public class Workload {
             ) a on a.parentid = q.id
             -- links
             left join (
-                select ql.questionid, json_agg(json_build_object('question', ql.relatedquestionid, 'type', ql.linktypeid)) as links_list
-                from questionslinks ql
-                group by ql.questionid
-            ) ql on ql.questionid = q.id
+                select ql.q_id, ql.links_list
+                from get_question_view ql
+            ) ql on ql.q_id = q.id
             where q.id = ?;
         """);
 
@@ -112,16 +111,22 @@ public class Workload {
             where v.postid = ?
         """);
 
-        getUserInfo = conn.prepareStatement("""
-            select displayname, creationdate, aboutme, websiteurl, location, reputation
-            from users
-            where id = ?
-        """);
+        // getUserInfo = conn.prepareStatement("""
+        //     select displayname, creationdate, aboutme, websiteurl, location, reputation
+        //     from users
+        //     where id = ?
+        // """);
 
-        getUserBadges = conn.prepareStatement("""
-            select array_agg(distinct name)
-            from badges
-            where userid = ?
+        // getUserBadges = conn.prepareStatement("""
+        //     select array_agg(distinct name)
+        //     from badges
+        //     where userid = ?
+        // """);
+
+        getUserProfile = conn.prepareStatement("""
+        SELECT
+            * From user_profile_view 
+            where user_id = ?;
         """);
 
         search = conn.prepareStatement("""
@@ -131,14 +136,22 @@ public class Workload {
             limit 25
         """);
 
-        latestQuestionsByTag = conn.prepareStatement("""
-            select id, title
-            from questions q
-            join questionstags qt on qt.questionid = q.id
-            where qt.tagid = ?
-            order by q.creationdate desc
-            limit 25
-        """);
+       latestQuestionsByTag = conn.prepareStatement("""
+           select id, title
+           from questions q
+           join questionstags qt on qt.questionid = q.id
+           where qt.tagid = ?
+           order by q.creationdate desc
+           limit 25
+       """);
+
+        // latestQuestionsByTag = conn.prepareStatement("""
+        //     select id, title
+        //     from last_questions_tag qt
+        //     where qt.tagid = ?
+        //     order by creationdate desc
+        //     limit 25
+        // """);
     }
 
 
@@ -219,6 +232,16 @@ public class Workload {
         var rs = getQuestionInfo.executeQuery();
         rs.next();
 
+       
+        // System.out.println("1------------------" + rs.getString(1));
+        // System.out.println("2------------------" + rs.getString(2));
+        // System.out.println("3------------------" + rs.getString(3));
+        // System.out.println("4------------------" + rs.getString(4));
+        // System.out.println("5------------------" + rs.getString(5));
+        // System.out.println("6------------------" + rs.getString(6));
+        // System.out.println("7------------------" + rs.getString(7));
+        // System.out.println("8------------------" + rs.getString(8));
+
         var q = new Question();
         q.title = rs.getString(1);
         q.body = rs.getString(2);
@@ -263,25 +286,32 @@ public class Workload {
      * Retrieves a user's profile
      */
     private User userProfile(long user) throws SQLException {
-        getUserInfo.setLong(1, user);
-        var rs = getUserInfo.executeQuery();
+        getUserProfile.setLong(1, user);
+        var rs = getUserProfile.executeQuery();
         rs.next();
+
+        // System.out.println("1------------------" + rs.getString(1));
+        // System.out.println("2------------------" + rs.getString(2));
+        // System.out.println("3------------------" + rs.getString(3));
+        // System.out.println("4------------------" + rs.getString(4));
+        // System.out.println("5------------------" + rs.getString(5));
+        // System.out.println("6------------------" + rs.getString(6));
+        // System.out.println("7------------------" + rs.getString(7));
+        // System.out.println("8------------------" + rs.getString(8));
 
         var u = new User();
-        u.displayName = rs.getString(1);
-        u.creationDate = rs.getTimestamp(2).toLocalDateTime();
-        u.aboutMe = rs.getString(3);
-        u.websiteUrl = rs.getString(4);
-        u.location = rs.getString(5);
-        u.reputation = rs.getInt(6);
-
-        getUserBadges.setLong(1, user);
-        rs = getUserBadges.executeQuery();
-        rs.next();
-        var badges = rs.getArray(1);
+        u.displayName = rs.getString(2);
+        u.creationDate = rs.getTimestamp(3).toLocalDateTime();
+        u.aboutMe = rs.getString(4);
+        u.websiteUrl = rs.getString(5);
+        u.location = rs.getString(6);
+        u.reputation = rs.getInt(7);
+        var badges = rs.getArray(8);
         if (badges != null) {
             u.badges = Arrays.asList((String[]) badges.getArray());
         }
+        
+        //System.out.println(u.toString());
 
         conn.commit();
         return u;
